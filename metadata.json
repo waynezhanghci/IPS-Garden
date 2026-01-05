@@ -1,0 +1,7 @@
+{
+  "name": "IPS-Daisy Garden-12.22",
+  "description": "An interactive digital garden where you click to plant and grow procedural daisies.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
