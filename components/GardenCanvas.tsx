@@ -24,7 +24,8 @@ class FloatingWord {
     constructor(x: number, y: number) {
         this.x = x;
         this.y = y;
-        const words = ['+Happy', '+Lucky', '+Cheers', '+AI'];
+        // 增加 ima, sogou, QB 关键词
+        const words = ['+Happy', '+Lucky', '+Cheers', '+AI', 'ima', 'sogou', 'QB'];
         this.text = words[Math.floor(Math.random() * words.length)];
     }
 
@@ -36,7 +37,8 @@ class FloatingWord {
 
     draw(ctx: CanvasRenderingContext2D) {
         ctx.save();
-        ctx.font = '200 28px sans-serif';
+        // 设置为加粗 (900)
+        ctx.font = '900 28px sans-serif';
         ctx.fillStyle = this.color + this.life + ')';
         ctx.textAlign = 'center';
         ctx.shadowBlur = 10;
@@ -106,6 +108,12 @@ class MaturityEssence {
     }
 }
 
+interface HandCursor {
+    x: number;
+    y: number;
+    isPinching: boolean;
+}
+
 export const GardenCanvas: React.FC<GardenCanvasProps> = ({ onUpdateCount, enableGestures }) => {
   const activeCanvasRef = useRef<HTMLCanvasElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -116,18 +124,18 @@ export const GardenCanvas: React.FC<GardenCanvasProps> = ({ onUpdateCount, enabl
   const wordsRef = useRef<FloatingWord[]>([]);
   const totalCountRef = useRef<number>(0);
 
-  // Added initial values to useRef to fix "Expected 1 arguments, but got 0" errors
   const requestRef = useRef<number | undefined>(undefined);
   const gestureLoopRef = useRef<number | undefined>(undefined);
   const lastVideoTimeRef = useRef<number>(-1);
   const gestureRecognizerRef = useRef<GestureRecognizer | null>(null);
   const [isModelLoaded, setIsModelLoaded] = useState(false);
   
-  const handCursorRef = useRef<{x: number, y: number, isPinching: boolean} | null>(null);
-  const lastPlantTimeRef = useRef<number>(0);
+  // 修改为支持多个手势的光标数组
+  const handCursorsRef = useRef<HandCursor[]>([]);
+  // 为每个手（最多5个）记录独立的种植时间
+  const lastPlantTimesRef = useRef<number[]>([0, 0, 0, 0, 0]);
 
   const addDaisy = useCallback((x: number, y: number) => {
-    // 性能保护逻辑：如果花朵数量超过新阈值 500，移除最旧的一朵
     if (daisiesRef.current.length >= MAX_DAISIES) {
         daisiesRef.current.shift();
     }
@@ -151,7 +159,7 @@ export const GardenCanvas: React.FC<GardenCanvasProps> = ({ onUpdateCount, enabl
                     delegate: "GPU"
                 },
                 runningMode: "VIDEO",
-                numHands: 1 
+                numHands: 5 // 支持最多5个手
             });
             setIsModelLoaded(true);
         } catch (error) { console.error("Mediapipe load error:", error); }
@@ -183,7 +191,7 @@ export const GardenCanvas: React.FC<GardenCanvasProps> = ({ onUpdateCount, enabl
             videoRef.current.srcObject = null;
         }
         if (gestureLoopRef.current) cancelAnimationFrame(gestureLoopRef.current);
-        handCursorRef.current = null;
+        handCursorsRef.current = [];
     };
 
     if (enableGestures) startWebcam(); else stopWebcam();
@@ -200,22 +208,27 @@ export const GardenCanvas: React.FC<GardenCanvasProps> = ({ onUpdateCount, enabl
           lastVideoTimeRef.current = video.currentTime;
           try {
             const results = recognizer.recognizeForVideo(video, now);
-            if (results.gestures.length > 0 && results.landmarks.length > 0) {
-                const landmarks = results.landmarks[0];
-                const indexTip = landmarks[8];
-                const thumbTip = landmarks[4];
-                const screenX = (1 - indexTip.x) * window.innerWidth;
-                const screenY = indexTip.y * window.innerHeight;
-                const pinchDist = Math.hypot(indexTip.x - thumbTip.x, indexTip.y - thumbTip.y);
-                const isPinching = pinchDist < 0.08; 
-                handCursorRef.current = { x: screenX, y: screenY, isPinching };
-                if (isPinching && now - lastPlantTimeRef.current > 400) {
-                    addDaisy(screenX, screenY);
-                    lastPlantTimeRef.current = now;
-                }
-            } else {
-                handCursorRef.current = null;
+            const newCursors: HandCursor[] = [];
+            
+            if (results.landmarks && results.landmarks.length > 0) {
+                results.landmarks.forEach((landmarks, index) => {
+                    const indexTip = landmarks[8];
+                    const thumbTip = landmarks[4];
+                    const screenX = (1 - indexTip.x) * window.innerWidth;
+                    const screenY = indexTip.y * window.innerHeight;
+                    const pinchDist = Math.hypot(indexTip.x - thumbTip.x, indexTip.y - thumbTip.y);
+                    const isPinching = pinchDist < 0.08; 
+                    
+                    newCursors.push({ x: screenX, y: screenY, isPinching });
+                    
+                    // 每个手并行触发种植
+                    if (isPinching && now - lastPlantTimesRef.current[index] > 400) {
+                        addDaisy(screenX, screenY);
+                        lastPlantTimesRef.current[index] = now;
+                    }
+                });
             }
+            handCursorsRef.current = newCursors;
           } catch (e) {
               console.warn("Prediction error:", e);
           }
@@ -226,16 +239,12 @@ export const GardenCanvas: React.FC<GardenCanvasProps> = ({ onUpdateCount, enabl
   const drawWatermark = (ctx: CanvasRenderingContext2D, w: number, h: number) => {
     ctx.save();
     const fontSize = Math.min(w, h) * 0.65;
-    // 使用粗体 (900)
     ctx.font = `900 ${fontSize}px "Helvetica Neue", "Helvetica", "Arial", sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    
     ctx.translate(w / 2, h / 2);
-    
     ctx.fillStyle = 'rgba(255, 255, 255, 0.018)';
     ctx.fillText('IPS', 0, 0);
-    
     ctx.restore();
   };
 
@@ -251,7 +260,6 @@ export const GardenCanvas: React.FC<GardenCanvasProps> = ({ onUpdateCount, enabl
 
     drawWatermark(ctx, canvas.width, canvas.height);
 
-    // 绘制并更新花朵
     daisiesRef.current.forEach(daisy => {
         daisy.updateAndDraw(ctx, now);
         if (daisy.canMature(now)) {
@@ -262,7 +270,6 @@ export const GardenCanvas: React.FC<GardenCanvasProps> = ({ onUpdateCount, enabl
         }
     });
 
-    // 飞行精华逻辑
     essencesRef.current = essencesRef.current.filter(ess => {
         const alive = ess.updateAndDraw(ctx, now);
         if (!alive) {
@@ -273,37 +280,36 @@ export const GardenCanvas: React.FC<GardenCanvasProps> = ({ onUpdateCount, enabl
         return alive;
     });
 
-    // 文字漂浮逻辑
     wordsRef.current = wordsRef.current.filter(word => {
         word.update();
         word.draw(ctx);
         return word.life > 0;
     });
 
-    // 粒子碎片逻辑
     particlesRef.current = particlesRef.current.filter(p => {
         p.update();
         p.draw(ctx);
         return p.life > 0;
     });
 
-    // 手势光标渲染 (🤏 表情)
-    if (enableGestures && handCursorRef.current) {
-        const { x, y, isPinching } = handCursorRef.current;
-        ctx.save();
-        ctx.font = '56px serif'; 
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        
-        ctx.shadowBlur = 20;
-        ctx.shadowColor = isPinching ? 'rgba(150, 177, 109, 0.8)' : 'rgba(255, 255, 255, 0.3)';
-        
-        const scale = isPinching ? 1.3 : 1.0;
-        ctx.translate(x, y);
-        ctx.scale(scale, scale);
-        ctx.fillText('🤏', 0, 0);
-        
-        ctx.restore();
+    // 绘制所有活跃的手势光标
+    if (enableGestures && handCursorsRef.current.length > 0) {
+        handCursorsRef.current.forEach(cursor => {
+            const { x, y, isPinching } = cursor;
+            ctx.save();
+            ctx.font = '56px serif'; 
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = isPinching ? 'rgba(150, 177, 109, 0.8)' : 'rgba(255, 255, 255, 0.3)';
+            
+            const scale = isPinching ? 1.3 : 1.0;
+            ctx.translate(x, y);
+            ctx.scale(scale, scale);
+            ctx.fillText('🤏', 0, 0);
+            ctx.restore();
+        });
     }
 
     requestRef.current = requestAnimationFrame(animate);

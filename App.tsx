@@ -13,7 +13,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="w-screen h-screen bg-gradient-to-b from-[#7D7169] to-[#272B2F] overflow-hidden relative font-sans">
+    <div className="w-screen h-screen bg-gradient-to-b from-[#436075] via-[#5E5B82] to-[#8A6E91] overflow-hidden relative font-sans">
       {/* 顶部标题 */}
       <div className="absolute top-6 left-6 text-white/60 pointer-events-none z-10 select-none">
         <h1 className="text-5xl font-light tracking-widest uppercase">IPS GARDEN</h1>
