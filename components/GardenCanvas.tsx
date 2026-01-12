@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { Daisy } from '../classes/Daisy';
 import { Particle } from '../classes/Particle';
@@ -24,7 +23,7 @@ class FloatingWord {
     constructor(x: number, y: number) {
         this.x = x;
         this.y = y;
-        // 增加 ima, sogou, QB 关键词
+        // 包含 ima, sogou, QB 关键词
         const words = ['+Happy', '+Lucky', '+Cheers', '+AI', 'ima', 'sogou', 'QB'];
         this.text = words[Math.floor(Math.random() * words.length)];
     }
@@ -37,7 +36,7 @@ class FloatingWord {
 
     draw(ctx: CanvasRenderingContext2D) {
         ctx.save();
-        // 设置为加粗 (900)
+        // 设置为特粗 (900)
         ctx.font = '900 28px sans-serif';
         ctx.fillStyle = this.color + this.life + ')';
         ctx.textAlign = 'center';
@@ -130,10 +129,10 @@ export const GardenCanvas: React.FC<GardenCanvasProps> = ({ onUpdateCount, enabl
   const gestureRecognizerRef = useRef<GestureRecognizer | null>(null);
   const [isModelLoaded, setIsModelLoaded] = useState(false);
   
-  // 修改为支持多个手势的光标数组
+  // 支持多个手势的光标数组
   const handCursorsRef = useRef<HandCursor[]>([]);
-  // 为每个手（最多5个）记录独立的种植时间
-  const lastPlantTimesRef = useRef<number[]>([0, 0, 0, 0, 0]);
+  // 为每个手（最多支持10个）记录独立的种植时间
+  const lastPlantTimesRef = useRef<number[]>(new Array(10).fill(0));
 
   const addDaisy = useCallback((x: number, y: number) => {
     if (daisiesRef.current.length >= MAX_DAISIES) {
@@ -159,7 +158,7 @@ export const GardenCanvas: React.FC<GardenCanvasProps> = ({ onUpdateCount, enabl
                     delegate: "GPU"
                 },
                 runningMode: "VIDEO",
-                numHands: 5 // 支持最多5个手
+                numHands: 10 // 支持最多10个手
             });
             setIsModelLoaded(true);
         } catch (error) { console.error("Mediapipe load error:", error); }
@@ -221,8 +220,8 @@ export const GardenCanvas: React.FC<GardenCanvasProps> = ({ onUpdateCount, enabl
                     
                     newCursors.push({ x: screenX, y: screenY, isPinching });
                     
-                    // 每个手并行触发种植
-                    if (isPinching && now - lastPlantTimesRef.current[index] > 400) {
+                    // 即使是多个手，只要在数组范围内就支持独立识别
+                    if (isPinching && now - (lastPlantTimesRef.current[index] || 0) > 400) {
                         addDaisy(screenX, screenY);
                         lastPlantTimesRef.current[index] = now;
                     }
