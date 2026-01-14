@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GardenCanvas } from './components/GardenCanvas';
 
 const App: React.FC = () => {
   const [flowerCount, setFlowerCount] = useState(0);
   const [gestureEnabled, setGestureEnabled] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // 指定的百度网盘链接
   const MUSIC_LINK = 'https://pan.baidu.com/s/1EZ2lNwCb9dGJMDCiZD9cGA';
@@ -11,6 +12,26 @@ const App: React.FC = () => {
   const handleUpdateCount = (count: number) => {
     setFlowerCount(count);
   };
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch((err) => {
+        console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+      });
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  };
+
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
+  }, []);
 
   return (
     <div className="w-screen h-screen bg-gradient-to-b from-[#436075] via-[#5E5B82] to-[#8A6E91] overflow-hidden relative font-sans">
@@ -88,6 +109,22 @@ const App: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* 右下角全屏按钮 - 更新图标和文字 */}
+      <button 
+        onClick={toggleFullscreen}
+        className="fixed bottom-6 right-6 z-50 bg-white/10 backdrop-blur-md border border-white/10 rounded-full px-6 py-3 flex items-center gap-3 shadow-lg cursor-pointer transition-all hover:bg-white/20 active:scale-95 group"
+        title={isFullscreen ? "退出全屏" : "进入全屏"}
+      >
+        <div className="relative w-5 h-5">
+            {/* Custom Corner Icon from image */}
+            <div className="absolute top-0 right-0 w-2 h-2 border-t-2 border-r-2 border-white/80"></div>
+            <div className="absolute bottom-0 left-0 w-2 h-2 border-b-2 border-l-2 border-white/80"></div>
+        </div>
+        <span className="text-sm font-medium tracking-wide text-white">
+          {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+        </span>
+      </button>
 
       <GardenCanvas onUpdateCount={handleUpdateCount} enableGestures={gestureEnabled} />
     </div>

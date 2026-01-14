@@ -338,9 +338,10 @@ export const GardenCanvas: React.FC<GardenCanvasProps> = ({ onUpdateCount, enabl
 
   return (
     <div className="w-full h-full relative cursor-crosshair">
+        {/* Adjusted bottom position to make room for fullscreen button */}
         <video 
             ref={videoRef} 
-            className={`fixed bottom-6 right-6 w-48 h-36 object-cover rounded-2xl border-2 border-white/20 scale-x-[-1] z-50 pointer-events-none transition-opacity duration-500 ${enableGestures ? 'opacity-100' : 'opacity-0'}`} 
+            className={`fixed bottom-24 right-6 w-48 h-36 object-cover rounded-2xl border-2 border-white/20 scale-x-[-1] z-50 pointer-events-none transition-opacity duration-500 ${enableGestures ? 'opacity-100' : 'opacity-0'}`} 
             autoPlay 
             playsInline 
             muted
