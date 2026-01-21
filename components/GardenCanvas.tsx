@@ -131,7 +131,7 @@ export const GardenCanvas: React.FC<GardenCanvasProps> = ({ onUpdateCount, enabl
   
   // 支持多个手势的光标数组
   const handCursorsRef = useRef<HandCursor[]>([]);
-  // 为每个手（最多支持10个）记录独立的种植时间
+  // 为每个手 (最多支持10个) 记录独立的种植时间
   const lastPlantTimesRef = useRef<number[]>(new Array(10).fill(0));
 
   const addDaisy = useCallback((x: number, y: number) => {
@@ -338,10 +338,10 @@ export const GardenCanvas: React.FC<GardenCanvasProps> = ({ onUpdateCount, enabl
 
   return (
     <div className="w-full h-full relative cursor-crosshair">
-        {/* Adjusted bottom position to make room for fullscreen button */}
+        {/* Adjusted size to w-32 h-24 to match the width of the fullscreen button */}
         <video 
             ref={videoRef} 
-            className={`fixed bottom-24 right-6 w-48 h-36 object-cover rounded-2xl border-2 border-white/20 scale-x-[-1] z-50 pointer-events-none transition-opacity duration-500 ${enableGestures ? 'opacity-100' : 'opacity-0'}`} 
+            className={`fixed bottom-32 right-6 w-32 h-24 object-cover rounded-2xl border-2 border-white/20 scale-x-[-1] z-50 pointer-events-none transition-opacity duration-500 ${enableGestures ? 'opacity-100' : 'opacity-0'}`} 
             autoPlay 
             playsInline 
             muted
