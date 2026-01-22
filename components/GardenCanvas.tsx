@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { Daisy } from '../classes/Daisy';
 import { Particle } from '../classes/Particle';
@@ -6,9 +7,10 @@ import { GestureRecognizer, FilesetResolver } from '@mediapipe/tasks-vision';
 interface GardenCanvasProps {
     onUpdateCount: (count: number) => void;
     enableGestures: boolean;
+    resetSignal: number;
 }
 
-const MAX_DAISIES = 500; 
+const MAX_DAISIES = 300; 
 
 class FloatingWord {
     x: number; y: number; text: string;
@@ -73,7 +75,7 @@ class MaturityEssence {
 
 interface HandCursor { x: number; y: number; isPinching: boolean; }
 
-export const GardenCanvas: React.FC<GardenCanvasProps> = ({ onUpdateCount, enableGestures }) => {
+export const GardenCanvas: React.FC<GardenCanvasProps> = ({ onUpdateCount, enableGestures, resetSignal }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const daisiesRef = useRef<Daisy[]>([]);
@@ -86,6 +88,9 @@ export const GardenCanvas: React.FC<GardenCanvasProps> = ({ onUpdateCount, enabl
   const [isModelLoaded, setIsModelLoaded] = useState(false);
   const handCursorsRef = useRef<HandCursor[]>([]);
   const lastPlantTimesRef = useRef<number[]>(new Array(10).fill(0));
+  
+  // 用于追踪上一次处理的重置信号
+  const lastResetSignalRef = useRef(resetSignal);
 
   const addDaisy = useCallback((x: number, y: number) => {
     if (daisiesRef.current.length >= MAX_DAISIES) daisiesRef.current.shift();
@@ -95,6 +100,19 @@ export const GardenCanvas: React.FC<GardenCanvasProps> = ({ onUpdateCount, enabl
   const triggerConfetti = (x: number, y: number) => {
     for(let i=0; i<20; i++) particlesRef.current.push(new Particle(x, y));
   };
+
+  // 修复后的重置逻辑：只有当信号真正发生变化（被点击）时才清理
+  useEffect(() => {
+    if (resetSignal !== lastResetSignalRef.current) {
+      daisiesRef.current = [];
+      particlesRef.current = [];
+      essencesRef.current = [];
+      wordsRef.current = [];
+      totalCountRef.current = 0;
+      onUpdateCount(0);
+      lastResetSignalRef.current = resetSignal;
+    }
+  }, [resetSignal, onUpdateCount]);
 
   useEffect(() => {
     const loadModel = async () => {
@@ -137,7 +155,6 @@ export const GardenCanvas: React.FC<GardenCanvasProps> = ({ onUpdateCount, enabl
         const v = videoRef.current;
         const recognizer = gestureRecognizerRef.current;
 
-        // 手势检测逻辑
         if (enableGestures && v && recognizer && v.readyState >= 2 && v.currentTime !== lastVideoTimeRef.current) {
             lastVideoTimeRef.current = v.currentTime;
             const res = recognizer.recognizeForVideo(v, now);
@@ -159,7 +176,6 @@ export const GardenCanvas: React.FC<GardenCanvasProps> = ({ onUpdateCount, enabl
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         const tx = canvas.width - 104; const ty = 104;
 
-        // 渲染逻辑
         daisiesRef.current.forEach(d => {
             d.updateAndDraw(ctx, now);
             if (d.canMature(now)) {
@@ -210,10 +226,9 @@ export const GardenCanvas: React.FC<GardenCanvasProps> = ({ onUpdateCount, enabl
 
   return (
     <div className="absolute inset-0">
-        {/* 监控视口：宽度 w-40，位置在全屏按钮正上方 */}
         <video 
             ref={videoRef} 
-            className={`fixed bottom-[108px] right-6 w-40 aspect-video object-cover rounded-2xl border-2 border-white/20 scale-x-[-1] z-50 pointer-events-none transition-opacity duration-500 ${enableGestures ? 'opacity-100' : 'opacity-0'}`} 
+            className={`fixed bottom-[116px] right-6 w-40 aspect-video object-cover rounded-2xl border-2 border-white/20 scale-x-[-1] z-50 pointer-events-none transition-opacity duration-500 ${enableGestures ? 'opacity-100' : 'opacity-0'}`} 
             autoPlay playsInline muted
         ></video>
         <canvas

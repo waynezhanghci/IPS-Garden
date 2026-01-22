@@ -1,14 +1,17 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useCallback } from 'react';
 import { GardenCanvas } from './components/GardenCanvas';
 
 const App: React.FC = () => {
   const [flowerCount, setFlowerCount] = useState(0);
   const [gestureEnabled, setGestureEnabled] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [resetSignal, setResetSignal] = useState(0);
 
-  const handleUpdateCount = (count: number) => {
+  // 使用 useCallback 确保函数引用稳定，防止子组件 Effect 误触发
+  const handleUpdateCount = useCallback((count: number) => {
     setFlowerCount(count);
-  };
+  }, []);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -22,6 +25,11 @@ const App: React.FC = () => {
     }
   };
 
+  const handleClear = () => {
+    setResetSignal(prev => prev + 1);
+    setFlowerCount(0);
+  };
+
   useEffect(() => {
     const onFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
@@ -32,6 +40,13 @@ const App: React.FC = () => {
 
   return (
     <div className="w-screen h-screen bg-gradient-to-b from-[#436075] via-[#5E5B82] to-[#8A6E91] overflow-hidden relative font-sans">
+      {/* 背景大水印 - 调整为正常、平面的展示方式，字号调整为约 35vw 以匹配红框大小 */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0">
+        <span className="text-white/[0.05] text-[35vw] font-black tracking-tighter leading-none uppercase">
+          IPS
+        </span>
+      </div>
+
       {/* 顶部标题 */}
       <div className="absolute top-12 left-6 text-white/60 pointer-events-none z-10 select-none">
         <h1 className="text-5xl font-light tracking-widest uppercase">IPS GARDEN</h1>
@@ -46,7 +61,6 @@ const App: React.FC = () => {
             <div className="text-[10px] font-bold tracking-[0.2em] text-white/60 uppercase mb-1 text-center leading-relaxed">
                 IPS<br/>Collected
             </div>
-            {/* UI 显示上限锁定为 9999 */}
             <div className={`text-white font-thin mt-1 transition-all duration-300 ${flowerCount > 999 ? 'text-5xl' : 'text-6xl'}`}>
                 {flowerCount > 9999 ? 9999 : flowerCount}
             </div>
@@ -86,21 +100,39 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* 右下角全屏按钮 */}
-      <button 
-        onClick={toggleFullscreen}
-        className="fixed bottom-12 right-6 z-50 bg-white/10 backdrop-blur-md border border-white/10 rounded-full px-6 py-3 flex items-center gap-3 shadow-lg cursor-pointer transition-all hover:bg-white/20 active:scale-95 group"
-      >
-        <div className="relative w-5 h-5">
-            <div className="absolute top-0 right-0 w-2 h-2 border-t-2 border-r-2 border-white/80"></div>
-            <div className="absolute bottom-0 left-0 w-2 h-2 border-b-2 border-l-2 border-white/80"></div>
-        </div>
-        <span className="text-sm font-medium tracking-wide text-white">
-          {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
-        </span>
-      </button>
+      {/* 右下角控制按钮组 */}
+      <div className="fixed bottom-12 right-6 z-50 flex items-center gap-4">
+        {/* 全屏按钮 */}
+        <button 
+          onClick={toggleFullscreen}
+          className="w-14 h-14 bg-white/10 backdrop-blur-md border border-white/10 rounded-full flex items-center justify-center shadow-lg cursor-pointer transition-all hover:bg-white/20 active:scale-90 group"
+          title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+        >
+          <div className="relative w-5 h-5">
+              <div className="absolute top-0 right-0 w-2 h-2 border-t-2 border-r-2 border-white/80"></div>
+              <div className="absolute bottom-0 left-0 w-2 h-2 border-b-2 border-l-2 border-white/80"></div>
+          </div>
+        </button>
 
-      <GardenCanvas onUpdateCount={handleUpdateCount} enableGestures={gestureEnabled} />
+        {/* 清屏按钮 */}
+        <button 
+          onClick={handleClear}
+          className="w-14 h-14 bg-white/10 backdrop-blur-md border border-white/10 rounded-full flex items-center justify-center shadow-lg cursor-pointer transition-all hover:bg-white/20 active:scale-90 group"
+          title="Clear All"
+        >
+          <div className="w-5 h-5 border-2 border-white/80 rounded-full flex items-center justify-center">
+              <div className="w-2.5 h-2.5 bg-white/80 rounded-full"></div>
+          </div>
+        </button>
+      </div>
+
+      <div className="relative z-10 w-full h-full">
+        <GardenCanvas 
+          onUpdateCount={handleUpdateCount} 
+          enableGestures={gestureEnabled} 
+          resetSignal={resetSignal}
+        />
+      </div>
     </div>
   );
 };
